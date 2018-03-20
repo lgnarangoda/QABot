@@ -1,0 +1,1377 @@
+Speech and Language Processing. Daniel Jurafsky & James H. Martin.
+rights reserved.
+
+Draft of August 7, 2017.
+
+Copyright c(cid:13) 2017.
+
+All
+
+CHAPTER
+
+28 Question Answering
+
+The quest for knowledge is deeply human, and so it is not surprising that practi-
+cally as soon as there were computers, and certainly as soon as there was natu-
+ral language processing, we were trying to use computers to answer textual ques-
+tions. By the early 1960s, there were systems implementing the two major modern
+paradigms of question answering—IR-based question answering and knowledge-
+based question answering to answer questions about baseball statistics or scientiﬁc
+facts. Even imaginary computers got into the act. Deep Thought, the computer that
+Douglas Adams invented in The Hitchhiker’s Guide to the Galaxy, managed to an-
+swer “the Great Question Of Life The Universe and Everything” (the answer was
+42, but unfortunately the details of the question were never revealed).
+
+More recently, IBM’s Watson question-answering system won the TV game-
+
+show Jeopardy! in 2011, beating humans at the task of answering questions like
+
+WILLIAM WILKINSON’S “AN ACCOUNT OF THE PRINCIPAL-
+ITIES OF WALLACHIA AND MOLDOVIA” INSPIRED THIS AU-
+THOR’S MOST FAMOUS NOVEL1
+
+Although the goal of quiz shows is entertainment, the technology used to answer
+these questions both draws on and extends the state of the art in practical question
+answering, as we will see.
+
+Most current question answering systems focus on factoid questions. Factoid
+questions are questions that can be answered with simple facts expressed in short
+text answers. The following factoid questions, for example, can be answered with a
+short string expressing a personal name, temporal expression, or location:
+(28.1) Who founded Virgin Airlines?
+(28.2) What is the average age of the onset of autism?
+(28.3) Where is Apple Computer based?
+
+In this chapter we describe the two major modern paradigms to question answer-
+
+ing, focusing on their application to factoid questions.
+
+The ﬁrst paradigm is called IR-based question answering or sometimes text-
+based question answering, and relies on the enormous amounts of information
+available as text on the Web or in specialized collections such as PubMed. Given a
+user question, information retrieval techniques extract passages directly from these
+documents, guided by the text of the question.
+
+The method processes the question to determine the likely answer type (often
+a named entity like a person, location, or time), and formulates queries to send to
+a search engine. The search engine returns ranked documents which are broken up
+into suitable passages and reranked. Finally candidate answer strings are extracted
+from the passages and ranked.
+
+1 The answer, of course, is Bram Stoker, and the novel was the fantastically Gothic Dracula.
+
+2 CHAPTER 28
+
+• QUESTION ANSWERING
+
+In the second paradigm, knowledge-based question answering, we instead
+build a semantic representation of the query. The meaning of a query can be a
+full predicate calculus statement. So the question What states border Texas?—taken
+from the GeoQuery database of questions on U.S. Geography (Zelle and Mooney,
+1996)— might have the representation:
+
+λ x.state(x)∧ borders(x,texas)
+
+Alternatively the meaning of a question could be a single relation between a known
+and an unknown entity. Thus the representation of the question When was Ada
+Lovelace born? could be birth-year (Ada Lovelace, ?x).
+
+Whatever meaning representation we choose, we’ll be using it to query databases
+of facts. These might be complex databases, perhaps of scientiﬁc facts or geospatial
+information, that need powerful logical or SQL queries. Or these might be databases
+of simple relations, triple stores like Freebase or DBpedia introduced in Chapter 20.
+Large practical systems like the DeepQA system in IBM’s Watson generally are
+hybrid systems, using both text datasets and structured knowledge bases to answer
+questions. DeepQA extracts a wide variety of meanings from the question (parses,
+relations, named entities, ontological information), and then ﬁnds large numbers of
+candidate answers in both knowledge bases and in textual sources like Wikipedia or
+newspapers. Each candidate answer is then scored using a wide variety of knowl-
+edge sources, such as geospatial databases, temporal reasoning, taxonomical classi-
+ﬁcation, and various textual sources.
+
+We’ll explore all three of these approaches: IR-based, knowledge-based, and the
+
+Watson DeepQA system, in the next three sections.
+
+triple stores
+
+28.1
+
+IR-based Factoid Question Answering
+
+The goal of IR-based question answering is to answer a user’s question by ﬁnding
+short text segments on the Web or some other collection of documents. Figure 28.1
+shows some sample factoid questions and their answers.
+
+Question
+Where is the Louvre Museum located?
+What’s the abbreviation for limited partnership?
+What are the names of Odin’s ravens?
+What currency is used in China?
+What kind of nuts are used in marzipan?
+What instrument does Max Roach play?
+What’s the ofﬁcial language of Algeria?
+How many pounds are there in a stone?
+
+Figure 28.1 Some sample factoid questions and their answers.
+
+Answer
+in Paris, France
+L.P.
+Huginn and Muninn
+the yuan
+almonds
+drums
+Arabic
+14
+
+Figure 28.2 shows the three phases of an IR-based factoid question-answering
+system: question processing, passage retrieval and ranking, and answer processing.
+
+28.1.1 Question Processing
+The goal of the question-processing phase is to extract a number of pieces of infor-
+mation from the question. The answer type speciﬁes the kind of entity the answer
+consists of (person, location, time, etc.). The query speciﬁes the keywords that
+should be used for the IR system to use in searching for documents. Some systems
+
+28.1
+
+•
+
+IR-BASED FACTOID QUESTION ANSWERING
+
+3
+
+Figure 28.2
+answer processing.
+
+IR-based factoid question answering has three stages: question processing, passage retrieval, and
+
+also extract a focus, which is the string of words in the question that are likely to
+be replaced by the answer in any answer string found. Some systems also classify
+the question type: is this a deﬁnition question, a math question, a list question? For
+example, for the following question:
+
+Which US state capital has the largest population?
+
+The query processing should produce results like the following:
+Answer Type: city
+Query: US state capital, largest, population
+Focus: state capital
+
+In the next two sections we summarize the two most commonly used tasks, an-
+
+swer type detection and query formulation.
+
+28.1.2 Answer Type Detection (Question Classiﬁcation)
+The task of question classiﬁcation or answer type recognition is to determine the
+answer type, the named-entity or similar class categorizing the answer. A question
+like “Who founded Virgin Airlines” expects an answer of type PERSON. A question
+like “What Canadian city has the largest population?” expects an answer of type
+CITY. If we know the answer type for a question, we can avoid looking at every
+sentence or noun phrase in the entire suite of documents for the answer, instead
+focusing on, for example, just people or cities.
+
+question
+classiﬁcation
+answer type
+
+answer type
+taxonomy
+
+As some of the above examples suggest, we might draw the set of possible an-
+swer types for a question classiﬁer from a set of named entities like PERSON, LO-
+CATION, and ORGANIZATION described in Chapter 20. Usually, however, a richer,
+often hierarchical set of answer types is used, an answer type taxonomy. Such tax-
+onomies can be built semi-automatically and dynamically, for example, from Word-
+Net (Harabagiu et al. 2000,Pasca 2003), or they can be designed by hand.
+
+Figure 28.4 shows one such hand-built ontology, the Li and Roth (2005) tagset;
+a subset is shown graphically in Fig. 28.3. In this hierarchical tagset, each ques-
+tion can be labeled with a coarse-grained tag like HUMAN or a ﬁne-grained tag like
+HUMAN:DESCRIPTION, HUMAN:GROUP, HUMAN:IND, and so on. Similar tags are
+used in other systems; the HUMAN:DESCRIPTION type is often called a BIOGRAPHY
+question because the answer is required to give a brief biography of the person rather
+than just a name.
+
+Question classiﬁers can be built by hand-writing rules, by supervised machine
+learning, or with some combination. The Webclopedia QA Typology, for example,
+
+DocumentDocumentDocumentDocumentDocumentDocumentDocumentDocumentQuestion ProcessingPassageRetrievalQuery FormulationAnswer Type DetectionQuestionPassage RetrievalDocument RetrievalAnswer ProcessingAnswerpassagesIndexingRelevantDocsDocumentDocumentDocument4 CHAPTER 28
+
+• QUESTION ANSWERING
+
+Figure 28.3 A subset of the Li and Roth (2005) answer types.
+
+contains 276 hand-written rules associated with the approximately 180 answer types
+in the typology (Hovy et al., 2002). A regular expression rule for detecting an answer
+type like BIOGRAPHY (which assumes the question has been named-entity-tagged)
+might be
+(28.4) who {is | was | are | were} PERSON
+
+Most modern question classiﬁers, however, are based on supervised machine
+learning, and are trained on databases of questions that have been hand-labeled with
+an answer type (Li and Roth, 2002). Typical features used for classiﬁcation include
+the words in the questions, the part-of-speech of each word, and named entities in
+the questions.
+
+Often, a single word in the question gives extra information about the answer
+type, and its identity is used as a feature. This word is sometimes called the an-
+swer type word or question headword, and may be deﬁned as the headword of
+the ﬁrst NP after the question’s wh-word; headwords are indicated in boldface in the
+following examples:
+(28.5) Which city in China has the largest number of foreign ﬁnancial companies?
+(28.6) What is the state ﬂower of California?
+
+Finally, it often helps to use semantic information about the words in the ques-
+tions. The WordNet synset ID of the word can be used as a feature, as can the IDs
+of the hypernym and hyponyms of each word in the question.
+
+In general, question classiﬁcation accuracies are relatively high on easy ques-
+tion types like PERSON, LOCATION, and TIME questions; detecting REASON and
+DESCRIPTION questions can be much harder.
+
+28.1.3 Query Formulation
+Query formulation is the task of creating from the question a list of keywords
+that form a query that can be sent to an information retrieval system. Exactly what
+query to form depends on the application. If question answering is applied to the
+Web, we might simply create a keyword from every word in the question, letting
+the Web search engine automatically remove any stopwords. Often, we leave out
+the question word (where, when, etc.). Alternatively, keywords can be formed from
+only the terms found in the noun phrases in the question, applying stopword lists to
+ignore function words and high-frequency, low-content verbs.
+
+NUMERICABBREVIATIONENTITYDESCRIPTIONLOCATIONHUMANLi & RothTaxonomycountrycitystatereasondefinitionfoodcurrencyanimaldatedistancepercentsizemoneyindividualtitlegroupexpressionabbreviation28.1
+
+•
+
+IR-BASED FACTOID QUESTION ANSWERING
+
+5
+
+Tag
+ABBREVIATION
+
+abb
+exp
+
+DESCRIPTION
+
+deﬁnition
+description
+manner
+reason
+ENTITY
+animal
+body
+color
+creative
+currency
+disease/medicine
+event
+food
+instrument
+lang
+letter
+other
+plant
+product
+religion
+sport
+substance
+symbol
+technique
+term
+vehicle
+word
+
+HUMAN
+
+description
+group
+ind
+title
+
+LOCATION
+
+city
+country
+mountain
+other
+state
+
+NUMERIC
+
+code
+count
+date
+distance
+money
+order
+other
+period
+percent
+temp
+speed
+size
+weight
+
+Example
+
+What’s the abbreviation for limited partnership?
+What does the “c” stand for in the equation E=mc2?
+
+What are tannins?
+What are the words to the Canadian National anthem?
+How can you get rust stains out of clothing?
+What caused the Titanic to sink ?
+
+What are the names of Odin’s ravens?
+What part of your body contains the corpus callosum?
+What colors make up a rainbow ?
+In what book can I ﬁnd the story of Aladdin?
+What currency is used in China?
+What does Salk vaccine prevent?
+What war involved the battle of Chapultepec?
+What kind of nuts are used in marzipan?
+What instrument does Max Roach play?
+What’s the ofﬁcial language of Algeria?
+What letter appears on the cold-water tap in Spain?
+What is the name of King Arthur’s sword?
+What are some fragrant white climbing roses?
+What is the fastest computer?
+What religion has the most members?
+What was the name of the ball game played by the Mayans?
+What fuel do airplanes use?
+What is the chemical symbol for nitrogen?
+What is the best way to remove wallpaper?
+How do you say “ Grandma ” in Irish?
+What was the name of Captain Bligh’s ship?
+What’s the singular of dice?
+
+Who was Confucius?
+What are the major companies that are part of Dow Jones?
+Who was the ﬁrst Russian astronaut to do a spacewalk?
+What was Queen Victoria’s title regarding India?
+
+What’s the oldest capital city in the Americas?
+What country borders the most others?
+What is the highest peak in Africa?
+What river runs through Liverpool?
+What states do not have state income tax?
+
+What is the telephone number for the University of Colorado?
+About how many soldiers died in World War II?
+What is the date of Boxing Day?
+How long was Mao’s 1930s Long March?
+How much did a McDonald’s hamburger cost in 1963?
+Where does Shanghai rank among world cities in population?
+What is the population of Mexico?
+What was the average life expectancy during the Stone Age?
+What fraction of a beaver’s life is spent swimming?
+How hot should the oven be when making Peachy Oat Mufﬁns?
+How fast must a spacecraft travel to escape Earth’s gravity?
+What is the size of Argentina?
+How many pounds are there in a stone?
+
+Figure 28.4 Question typology from Li and Roth (2002), (2005). Example sentences are
+from their corpus of 5500 labeled questions. A question can be labeled either with a coarse-
+grained tag like HUMAN or NUMERIC or with a ﬁne-grained tag like HUMAN:DESCRIPTION,
+HUMAN:GROUP, HUMAN:IND, and so on.
+
+6 CHAPTER 28
+
+• QUESTION ANSWERING
+
+query
+reformulation
+
+passage
+retrieval
+
+When question answering is applied to smaller sets of documents, for example,
+to answer questions about corporate information pages, we still use an IR engine
+to search our documents for us. But for this smaller set of documents, we generally
+need to apply query expansion. On the Web the answer to a question might appear in
+many different forms, so if we search with words from the question we’ll probably
+ﬁnd an answer written in the same form. In smaller sets of corporate pages, by con-
+trast, an answer might appear only once, and the exact wording might look nothing
+like the question. Thus, query expansion methods can add query terms in hopes of
+matching the particular form of the answer as it appears. These might include all
+morphological variants of the content words in the question, or synonyms from a
+thesaurus.
+
+A query formulation approach that is sometimes used for questioning the Web is
+to apply query reformulation rules to the query. The rules rephrase the question to
+make it look like a substring of possible declarative answers. The question “when
+was the laser invented?” might be reformulated as “the laser was invented”; the
+question “where is the Valley of the Kings?” as “the Valley of the Kings is located
+in”. Here are some sample hand-written reformulation rules from Lin (2007):
+(28.7) wh-word did A verb B → . . . A verb+ed B
+(28.8) Where is A → A is located in
+
+28.1.4 Passage Retrieval
+The query that was created in the question-processing phase is next used to query
+an information-retrieval system, either a general IR engine over a proprietary set of
+indexed documents or a Web search engine. The result of this document retrieval
+stage is a set of documents.
+
+Although the set of documents is generally ranked by relevance, the top-ranked
+document is probably not the answer to the question. This is because documents
+are not an appropriate unit to rank with respect to the goals of a question-answering
+system. A highly relevant and large document that does not prominently answer a
+question is not an ideal candidate for further processing.
+
+Therefore, the next stage is to extract a set of potential answer passages from
+the retrieved set of documents. The deﬁnition of a passage is necessarily system
+dependent, but the typical units include sections, paragraphs, and sentences. We
+might run a paragraph segmentation algorithm on all the returned documents and
+treat each paragraph as a segment.
+
+We next perform passage retrieval. In this stage, we ﬁrst ﬁlter out passages in
+the returned documents that don’t contain potential answers and then rank the rest
+according to how likely they are to contain an answer to the question. The ﬁrst step
+in this process is to run a named entity or answer type classiﬁcation on the retrieved
+passages. The answer type that we determined from the question tells us the possible
+answer types we expect to see in the answer. We can therefore ﬁlter out documents
+that don’t contain any entities of the right type.
+
+The remaining passages are then ranked, usually by supervised machine learn-
+ing, relying on a small set of features that can be easily extracted from a potentially
+large number of answer passages, such as:
+
+• The number of named entities of the right type in the passage
+• The number of question keywords in the passage
+• The longest exact sequence of question keywords that occurs in the passage
+• The rank of the document from which the passage was extracted
+
+28.1
+
+•
+
+IR-BASED FACTOID QUESTION ANSWERING
+
+7
+
+• The proximity of the keywords from the original query to each other
+
+For each passage identify the shortest span that covers the keywords contained
+in that passage. Prefer smaller spans that include more keywords (Pasca 2003,
+Monz 2004).
+
+• The N-gram overlap between the passage and the question
+
+Count the N-grams in the question and the N-grams in the answer passages.
+Prefer the passages with higher N-gram overlap with the question (Brill et al.,
+2002).
+
+For question answering from the Web, instead of extracting passages from all
+returned documents, we can rely on the Web search to do passage extraction for
+us. We do this by using snippets produced by the Web search engine as the returned
+passages. For example, Fig. 28.5 shows snippets for the ﬁrst ﬁve documents returned
+from Google for the query When was movable type metal printing invented in Korea?
+
+Figure 28.5 Five snippets from Google in response to the query When was movable type
+metal printing invented in Korea?
+
+28.1.5 Answer Processing
+The ﬁnal stage of question answering is to extract a speciﬁc answer from the passage
+so as to be able to present the user with an answer like 29,029 feet to the question
+“How tall is Mt. Everest?”
+
+8 CHAPTER 28
+
+• QUESTION ANSWERING
+
+Two classes of algorithms have been applied to the answer-extraction task, one
+
+based on answer-type pattern extraction and one based on N-gram tiling.
+
+In the pattern-extraction methods for answer processing, we use information
+about the expected answer type together with regular expression patterns. For ex-
+ample, for questions with a HUMAN answer type, we run the answer type or named
+entity tagger on the candidate passage or sentence and return whatever entity is la-
+beled with type HUMAN. Thus, in the following examples, the underlined named
+entities are extracted from the candidate answer passages as the answer to the HU-
+MAN and DISTANCE-QUANTITY questions:
+“Who is the prime minister of India”
+Manmohan Singh, Prime Minister of India, had told left leaders that the
+deal would not be renegotiated.
+“How tall is Mt. Everest?”
+The ofﬁcial height of Mount Everest is 29029 feet
+
+Unfortunately, the answers to some questions, such as DEFINITION questions,
+don’t tend to be of a particular named entity type. For some questions, then, instead
+of using answer types, we use hand-written regular expression patterns to help ex-
+tract the answer. These patterns are also useful in cases in which a passage contains
+multiple examples of the same named entity type. Figure 28.6 shows some patterns
+from Pasca (2003) for the question phrase (QP) and answer phrase (AP) of deﬁnition
+questions.
+
+Pattern
+<AP> such as <QP> What is autism?
+<QP>, a <AP>
+
+Question
+
+Answer
+“, developmental disorders such as autism”
+
+What is a caldera? “the Long Valley caldera, a volcanic crater 19
+
+Figure 28.6 Some answer-extraction patterns for deﬁnition questions (Pasca, 2003).
+
+miles long”
+
+The patterns are speciﬁc to each question type and can either be written by hand
+or learned automatically using relation extraction methods. Patterns can then be
+used together with other information as features in a classiﬁer that ranks candidate
+answers. We extract potential answers by using named entities or patterns or even
+just by looking at every sentence returned from passage retrieval and rank them using
+a classiﬁer with features like the following.
+Answer type match: True if the candidate answer contains a phrase with the cor-
+
+rect answer type.
+
+Pattern match: The identity of a pattern that matches the candidate answer.
+Number of matched question keywords: How many question keywords are con-
+
+tained in the candidate answer.
+
+Keyword distance: The distance between the candidate answer and query key-
+words (measured in average number of words or as the number of keywords
+that occur in the same syntactic phrase as the candidate answer).
+
+Novelty factor: True if at least one word in the candidate answer is novel, that is,
+
+not in the query.
+
+Apposition features: True if the candidate answer is an appositive to a phrase con-
+taining many question terms. Can be approximated by the number of question
+terms separated from the candidate answer through at most three words and
+one comma (Pasca, 2003).
+
+N-gram tiling
+
+N-gram mining
+
+N-gram
+ﬁltering
+
+28.2
+
+• KNOWLEDGE-BASED QUESTION ANSWERING
+
+9
+
+Punctuation location: True if the candidate answer is immediately followed by a
+
+comma, period, quotation marks, semicolon, or exclamation mark.
+
+Sequences of question terms: The length of the longest sequence of question
+
+terms that occurs in the candidate answer.
+
+An alternative approach to answer extraction, used solely in Web search, is
+based on N-gram tiling, sometimes called the redundancy-based approach (Brill
+et al. 2002, Lin 2007). This simpliﬁed method begins with the snippets returned
+from the Web search engine, produced by a reformulated query. In the ﬁrst step,
+N-gram mining, every unigram, bigram, and trigram occurring in the snippet is ex-
+tracted and weighted. The weight is a function of the number of snippets in which
+the N-gram occurred, and the weight of the query reformulation pattern that re-
+turned it. In the N-gram ﬁltering step, N-grams are scored by how well they match
+the predicted answer type. These scores are computed by hand-written ﬁlters built
+for each answer type. Finally, an N-gram tiling algorithm concatenates overlapping
+N-gram fragments into longer answers. A standard greedy method is to start with
+the highest-scoring candidate and try to tile each other candidate with this candidate.
+The best-scoring concatenation is added to the set of candidates, the lower-scoring
+candidate is removed, and the process continues until a single answer is built.
+
+For any of these answer-extraction methods, the exact answer phrase can just be
+presented to the user by itself, or, more helpfully, accompanied by enough passage
+information to provide helpful context.
+
+28.2 Knowledge-based Question Answering
+
+While an enormous amount of information is encoded in the vast amount of text
+on the web, information obviously also exists in more structured forms. We use
+the term knowledge-based question answering for the idea of answering a natural
+language question by mapping it to a query over a structured database. Like the text-
+based paradigm for question answering, this approach dates back to the earliest days
+of natural language processing, with systems like BASEBALL (Green et al., 1961)
+that answered questions from a structured database of baseball games and stats.
+
+Systems for mapping from a text string to any logical form are called semantic
+parsers (???). Semantic parsers for question answering usually map either to some
+version of predicate calculus or a query language like SQL or SPARQL, as in the
+examples in Fig. 28.7.
+
+Question
+When was Ada Lovelace born?
+What states border Texas?
+What is the largest state
+How many people survived the sinking of
+
+the Titanic
+
+Logical form
+birth-year (Ada Lovelace, ?x)
+λ x.state(x) ∧ borders(x,texas)
+argmax(λ x.state(x),λ x.size(x))
+(count (!fb:event.disaster.survivors
+
+fb:en.sinking of the titanic))
+
+Figure 28.7 Sample logical forms produced by a semantic parser for question answering. These range from
+simple relations like birth-year, or relations normalized to databases like Freebase, to full predicate calculus.
+
+The logical form of the question is thus either in the form of a query or can easily
+be converted into one. The database can be a full relational database, or simpler
+structured databases like sets of RDF triples. Recall from Chapter 20 that an RDF
+triple is a 3-tuple, a predicate with two arguments, expressing some simple relation
+
+10 CHAPTER 28
+
+• QUESTION ANSWERING
+
+or proposition. Popular ontologies like Freebase (Bollacker et al., 2008) or DBpedia
+(Bizer et al., 2009) have large numbers of triples derived from Wikipedia infoboxes,
+the structured tables associated with certain Wikipedia articles.
+
+The simplest formation of the knowledge-based question answering task is to
+answer factoid questions that ask about one of the missing arguments in a triple.
+Consider an RDF triple like the following:
+
+subject
+predicate object
+Ada Lovelace birth-year 1815
+
+This triple can be used to answer text questions like ‘When was Ada Lovelace
+born?’ or ‘Who was born in 1815?’. Question answering in this paradigm requires
+mapping from textual strings like ”When was ... born” to canonical relations in the
+knowledge base like birth-year. We might sketch this task as:
+“When was Ada Lovelace born?” → birth-year (Ada Lovelace, ?x)
+“What is the capital of England?” → capital-city(?x, England)
+
+28.2.1 Rule-based Methods
+For relations that are very frequent, it may be worthwhile to write hand-written rules
+to extract relations from the question, just as we saw in Section ??. For example, to
+extract the birth-year relation, we could write patterns that search for the question
+word When, a main verb like born, and that extract the named entity argument of the
+verb.
+
+28.2.2 Supervised Methods
+In some cases we have supervised data, consisting of a set of questions paired with
+their correct logical form like the examples in Fig. 28.7. The task is then to take
+those pairs of training tuples and produce a system that maps from new questions to
+their logical forms.
+
+Most supervised algorithms for learning to answer these simple questions about
+relations ﬁrst parse the questions and then align the parse trees to the logical form.
+Generally these systems bootstrap by having a small set of rules for building this
+mapping, and an initial lexicon as well. For example, a system might have built-
+in strings for each of the entities in the system (Texas, Ada Lovelace), and then
+have simple default rules mapping fragments of the question parse tree to particular
+relations:
+
+nsubj
+
+dobj
+
+Who V ENTITY → relation( ?x, entity)
+
+tmod
+
+nsubj
+
+When V ENTITY → relation( ?x, entity)
+Then given these rules and the lexicon, a training tuple like the following:
+“When was Ada Lovelace born?” → birth-year (Ada Lovelace, ?x)
+
+would ﬁrst be parsed, resulting in the following mapping.
+
+28.2
+
+• KNOWLEDGE-BASED QUESTION ANSWERING
+
+11
+
+tmod
+
+nsubj
+
+When was Ada Lovelace born → birth-year(Ada Lovelace, ?x)
+From many pairs like this, we could induce mappings between pieces of parse
+fragment, such as the mapping between the parse fragment on the left and the rela-
+tion on the right:
+
+tmod
+
+nsubj
+
+When was · born → birth-year( , ?x)
+A supervised system would thus parse each tuple in the training set and induce a
+bigger set of such speciﬁc rules, allowing it to map unseen examples of “When was
+X born?” questions to the birth-year relation. Rules can furthermore be associ-
+ated with counts based on the number of times the rule is used to parse the training
+data. Like rule counts for probabilistic grammars, these can be normalized into prob-
+abilities. The probabilities can then be used to choose the highest probability parse
+for sentences with multiple semantic interpretations.
+
+The supervised approach can be extended to deal with more complex questions
+that are not just about single relations. Consider the question What is the biggest
+state bordering Texas? from the GEOQUERY (Zelle and Mooney, 1996) dataset,
+with the semantic form:
+
+argmax(λ x.state(x)∧ borders(x,texas),λ x.size(x))
+This question has much more complex structures than the simple single-relation
+questions we considered above, such as the argmax function, the mapping of the
+word biggest to size and so on. Zettlemoyer and Collins (2005) shows how more
+complex default rules (along with richer syntactic structures) can be used to learn to
+map from text sentences to more complex logical forms. The rules take the training
+set’s pairings of sentence and meaning as above and use the complex rules to break
+each training example down into smaller tuples that can then be recombined to parse
+new sentences.
+
+28.2.3 Dealing with Variation: Semi-Supervised Methods
+Because it is difﬁcult to create training sets with questions labeled with their mean-
+ing representation, supervised datasets can’t cover the wide variety of forms that
+even simple factoid questions can take. For this reason most techniques for mapping
+factoid questions to the canonical relations or other structures in knowledge bases
+ﬁnd some way to make use of textual redundancy.
+
+The most common source of redundancy, of course, is the web, which contains
+vast number of textual variants expressing any relation. For this reason, most meth-
+ods make some use of web text, either via semi-supervised methods like distant
+supervision or unsupervised methods like open information extraction, both intro-
+duced in Chapter 20. For example the REVERB open information extractor (Fader
+et al., 2011) extracts billions of (subject, relation, object) triples of strings from the
+web, such as (“Ada Lovelace”,“was born in”, “1815”). By aligning these strings
+with a canonical knowledge source like Wikipedia, we create new relations that can
+be queried while simultaneously learning to map between the words in question and
+
+12 CHAPTER 28
+
+• QUESTION ANSWERING
+
+entity linking
+
+canonical relations.
+
+To align a REVERB triple with a canonical knowledge source we ﬁrst align
+the arguments and then the predicate. Recall from Chapter 23 that linking a string
+like “Ada Lovelace” with a Wikipedia page is called entity linking; we thus rep-
+resent the concept ‘Ada Lovelace’ by a unique identiﬁer of a Wikipedia page. If
+this subject string is not associated with a unique page on Wikipedia, we can dis-
+ambiguate which page is being sought, for example by using the cosine distance
+between the triple string (‘Ada Lovelace was born in 1815’) and each candidate
+Wikipedia page. Date strings like ‘1815’ can be turned into a normalized form us-
+ing standard tools for temporal normalization like SUTime (Chang and Manning,
+2012). Once we’ve aligned the arguments, we align the predicates. Given the Free-
+base relation people.person.birthdate(ada lovelace,1815) and the string
+‘Ada Lovelace was born in 1815’, having linked Ada Lovelace and normalized
+1815, we learn the mapping between the string ‘was born in’ and the relation peo-
+ple.person.birthdate. In the simplest case, this can be done by aligning the relation
+with the string of words in between the arguments; more complex alignment algo-
+rithms like IBM Model 1 (Chapter 25) can be used. Then if a phrase aligns with a
+predicate across many entities, it can be extracted into a lexicon for mapping ques-
+tions to relations.
+
+Here are some examples from such a resulting lexicon, produced by Berant
+et al. (2013), giving many variants of phrases that align with the Freebase relation
+country.capital between a country and its capital city:
+
+become capital of
+capital of
+ofﬁcial capital of
+capitol of
+beautiful capital of
+political capital of
+make capital of
+capitol city of
+capital city in
+political center of
+modern capital of
+cosmopolitan capital of
+federal capital of
+administrative capital city of
+Figure 28.8 Some phrases that align with the Freebase relation country.capital from
+Berant et al. (2013).
+
+capital city of
+national capital of
+administrative capital of
+remain capital of
+bustling capital of
+move its capital to
+beautiful capital city of
+
+Another useful source of linguistic redundancy are paraphrase databases. For ex-
+ample the site wikianswers.com contains millions of pairs of questions that users
+have tagged as having the same meaning, 18 million of which have been collected
+in the PARALEX corpus (Fader et al., 2013). Here’s an example:
+
+Q: What are the green blobs in plant cells?
+Lemmatized synonyms from PARALEX:
+what be the green blob in plant cell?
+what be green part in plant cell?
+what be the green part of a plant cell?
+what be the green substance in plant cell?
+what be the part of plant cell that give it green color?
+what cell part do plant have that enable the plant to be give a green color?
+what part of the plant cell turn it green?
+part of the plant cell where the cell get it green color?
+the green part in a plant be call?
+the part of the plant cell that make the plant green be call?
+The resulting millions of pairs of question paraphrases can be aligned to each
+other using MT alignment approaches (such as IBM Model 1) to create an MT-style
+
+28.3
+
+• USING MULTIPLE INFORMATION SOURCES: IBM’S WATSON
+
+13
+
+phrase table for translating from question phrases to synonymous phrases. These
+are used by a number of modern question answering algorithms, generating all para-
+phrases of a question as part of the process of ﬁnding an answer (Fader et al. 2013,
+Berant and Liang 2014).
+
+28.3 Using multiple information sources: IBM’s Watson
+
+Of course there is no reason to limit ourselves to just text-based or knowledge-based
+resources for question answering. The Watson system from IBM that won the Jeop-
+ardy! challenge in 2011 is an example of a system that relies on a wide variety of
+resources to answer questions.
+
+Figure 28.9 The 4 broad stages of Watson QA: (1) Question Processing, (2) Candidate Answer Generation,
+(3) Candidate Answer Scoring, and (4) Answer Merging and Conﬁdence Scoring.
+
+Figure 28.9 shows the 4 stages of the DeepQA system that is the question an-
+
+swering component of Watson.
+
+The ﬁrst stage is question processing. The DeepQA system runs parsing, named
+entity tagging, and relation extraction on the question. Then, like the text-based
+systems in Section 28.1, the DeepQA system extracts the focus, the answer type
+(also called the lexical answer type or LAT), and performs question classiﬁcation
+and question sectioning.
+
+Consider these Jeopardy! examples, with a category followed by a question:
+
+Poets and Poetry: He was a bank clerk in the Yukon before he published
+“Songs of a Sourdough” in 1907.
+THEATRE: A new play based on this Sir Arthur Conan Doyle canine
+classic opened on the London stage in 2007.
+
+The questions are parsed, named entities are extracted (Sir Arthur Conan Doyle
+identiﬁed as a PERSON, Yukon as a GEOPOLITICAL ENTITY, “Songs of a Sour-
+dough” as a COMPOSITION), coreference is run (he is linked with clerk) and rela-
+tions like the following are extracted:
+
+authorof(focus,“Songs of a sourdough”)
+publish (e1, he, “Songs of a sourdough”)
+
+DocumentDocumentDocument(1) Question ProcessingFrom Text ResourcesFocus DetectionLexical Answer Type DetectionQuestionDocument and Passsage RetrievalpassagesDocumentDocumentDocumentQuestionClassificationParsingNamed Entity TaggingRelation ExtractionCoreferenceFrom Structured DataRelation RetrievalDBPediaFreebase(2) Candidate Answer GenerationCandidateAnswerCandidateAnswerCandidateAnswerCandidateAnswerCandidateAnswerCandidateAnswerCandidateAnswerCandidateAnswerCandidateAnswerCandidateAnswerCandidateAnswerCandidateAnswer(3) Candidate Answer ScoringEvidence Retrievaland scoringAnswerExtractionDocument titlesAnchor textTextEvidenceSources(4) ConfidenceMerging and RankingTextEvidenceSourcesTime from DBPediaSpace from FacebookAnswer TypeAnswerandConﬁdenceCandidateAnswer+ ConﬁdenceCandidateAnswer+ ConﬁdenceCandidateAnswer+ ConﬁdenceCandidateAnswer+ ConﬁdenceCandidateAnswer+ ConﬁdenceLogisticRegressionAnswerRankerMergeEquivalentAnswers14 CHAPTER 28
+
+• QUESTION ANSWERING
+
+in (e2, e1, 1907)
+temporallink(publish(...), 1907)
+
+focus
+
+lexical answer
+type
+
+Next DeepQA extracts the question focus, shown in bold in both examples. The
+focus is the part of the question that co-refers with the answer, used for example to
+align with a supporting passage. The focus is extracted by hand-written rules—made
+possible by the relatively stylized syntax of Jeopardy! questions—such as a rule
+extracting any noun phrase with determiner “this” as in the Conan Doyle example,
+and rules extracting pronouns like she, he, hers, him, as in the poet example.
+
+The lexical answer type (shown in blue above) is a word or words which tell
+us something about the semantic type of the answer. Because of the wide variety
+of questions in Jeopardy!, Jeopardy! uses a far larger set of answer types than the
+sets for standard factoid algorithms like the one shown in Fig. 28.4. Even a large
+set of named entity tags is insufﬁcient to deﬁne a set of answer types. The DeepQA
+team investigated a set of 20,000 questions and found that a named entity tagger
+with over 100 named entity types covered less than half the types in these questions.
+Thus DeepQA extracts a wide variety of words to be answer types; roughly 5,000
+lexical answer types occurred in the 20,000 questions they investigated, often with
+multiple answer types in each question.
+
+These lexical answer types are again extracted by rules: the default rule is to
+choose the syntactic headword of the focus. Other rules improve this default choice.
+For example additional lexical answer types can be words in the question that are
+coreferent with or have a particular syntactic relation with the focus, such as head-
+words of appositives or predicative nominatives of the focus. In some cases even the
+Jeopardy! category can act as a lexical answer type, if it refers to a type of entity
+that is compatible with the other lexical answer types. Thus in the ﬁrst case above,
+he, poet, and clerk are all lexical answer types. In addition to using the rules directly
+as a classiﬁer, they can instead be used as features in a logisitic regression classiﬁer
+that can return a probability as well as a lexical answer type.
+
+Note that answer types function quite differently in DeepQA than the purely IR-
+based factoid question answerers. In the algorithm described in Section 28.1, we
+determine the answer type, and then use a strict ﬁltering algorithm only considering
+text strings that have exactly that type. In DeepQA, by contrast, we extract lots of
+answers, unconstrained by answer type, and a set of answer types, and then in the
+later ‘candidate answer scoring’ phase, we simply score how well each answer ﬁts
+the answer types as one of many sources of evidence.
+
+Finally the question is classiﬁed by type (deﬁnition question, multiple-choice,
+puzzle, ﬁll-in-the-blank). This is generally done by writing pattern-matching regular
+expressions over words or parse trees.
+
+In the second candidate answer generation stage, we combine the processed
+question with external documents and other knowledge sources to suggest many
+candidate answers. These candidate answers can either be extracted from text docu-
+ments or from structured knowledge bases.
+
+For structured resources like DBpedia, IMDB, or the triples produced by Open
+Information Extraction, we can just query these stores with the relation and the
+known entity, just as we saw in Section 28.2. Thus if we have extracted the rela-
+tion authorof(focus,"Songs of a sourdough"), we can query a triple store
+with authorof(?x,"Songs of a sourdough") to return the correct author.
+
+The method for extracting answers from text depends on the type of text docu-
+ments. To extract answers from normal text documents we can do passage search
+
+28.3
+
+• USING MULTIPLE INFORMATION SOURCES: IBM’S WATSON
+
+15
+
+just as we did in Section 28.1. As we did in that section, we need to generate a query
+from the question; for DeepQA this is generally done by eliminating stop words, and
+then upweighting any terms which occur in any relation with the focus. For example
+from this query:
+
+MOVIE-“ING”: Robert Redford and Paul Newman starred in this depression-
+era grifter ﬂick. (Answer: “The Sting”)
+
+the following weighted query might be extracted:
+
+(2.0 Robert Redford) (2.0 Paul Newman) star depression era grifter (1.5 ﬂick)
+The query can now be passed to a standard IR system. Some systems are already
+set up to allow retrieval of short passages, and the system can just return the ten 1-2
+sentence passages that are needed for the next stage. Alternatively the query can
+be passed to a standard document retrieval engine, and then from each returned
+document passages are selected that are longer, toward the front, and have more
+named entities.
+
+DeepQA also makes use of the convenient fact that the vast majority of Jeopardy!
+answers are the title of a Wikipedia document. To ﬁnd these titles, we can do a
+second text retrieval pass speciﬁcally on Wikipedia documents. Then instead of
+extracting passages from the retrieved Wikipedia document, we directly return the
+titles of the highly ranked retrieved documents as the possible answers.
+
+anchor texts
+
+Once we have a set of passages, we need to extract candidate answers. As we
+just said, if the document is a Wikipedia page, we can just take the title, but for other
+texts, like news documents, we need other approaches. Two common approaches
+are to extract all anchor texts in the document (anchor text is the text between <a>
+and <\a> used to point to a URL in an HTML page), or to extract all noun phrases
+in the passage that are Wikipedia document titles.
+
+The third candidate answer scoring stage uses many sources of evidence to
+score the candidates. One of the most important is the lexical answer type. DeepQA
+includes a system that takes a candidate answer and a lexical answer type and returns
+a score indicating whether the candidate answer can be interpreted as a subclass or
+instance of the answer type. Consider the candidate “difﬁculty swallowing” and
+the lexical answer type “manifestation”. DeepQA ﬁrst matches each of these words
+with possible entities in ontologies like DBpedia and WordNet. Thus the candidate
+“difﬁculty swallowing” is matched with the DBpedia entity “Dysphagia”, and then
+that instance is mapped to the WordNet type “Symptom”. The answer type “man-
+ifestation” is mapped to the WordNet type “Condition”. The system looks for a
+link of hyponymy, instance-of or synonymy between these two types; in this case a
+hyponymy relation is found between “Symptom” and “Condition”.
+
+Other scorers are based on using time and space relations extracted from DBpe-
+dia or other structured databases. For example, we can extract temporal properties
+of the entity (when was a person born, when died) and then compare to time expres-
+sions in the question. If a time expression in the question occurs chronologically
+before a person was born, that would be evidence against this person being the an-
+swer to the question.
+
+Finally, we can use text retrieval to help retrieve evidence supporting a candidate
+answer. We can retrieve passages with terms matching the question, then replace the
+focus in the question with the candidate answer and measure the overlapping words
+or ordering of the passage with the modiﬁed question.
+
+The output of this stage is a set of candidate answers, each with a vector of
+
+scoring features.
+
+16 CHAPTER 28
+
+• QUESTION ANSWERING
+
+In the ﬁnal answer merging and scoring step, we ﬁrst merge candidate answers
+that are equivalent. Thus if we had extracted two candidate answers J.F.K. and John
+F. Kennedy, this stage would merge the two into a single candidate. For proper
+nouns, automatically generated name dictionaries can help in this task. One useful
+kind of resource is the large synonym dictionaries that are created by listing all an-
+chor text strings that point to the same Wikipedia page; such dictionaries give large
+numbers of synonyms for each Wikipedia title — e.g., JFK, John F. Kennedy, John
+Fitzgerald Kennedy, Senator John F. Kennedy, President Kennedy, Jack Kennedy,
+etc. (Spitkovsky and Chang, 2012). For common nouns, we can use morphological
+parsing to merge candidates which are morphological variants.
+
+We then merge the evidence for each variant, combining the scoring feature
+
+vectors for the merged candidates into a single vector.
+
+Now we have a set of candidates, each with a feature vector. A regularized
+logistic regression classiﬁer is used to take each feature vector and assign a single
+conﬁdence value to this candidate answer. The classiﬁer is trained on thousands
+of candidate answers, each labeled for whether it is correct or incorrect, together
+with their feature vectors, and learning to predict a probability of being a correct
+answer. Since, in training, there are far more incorrect answers than correct answers,
+we need to use one of the standard techniques for dealing with very imbalanced
+data. DeepQA uses instance weighting, assigning an instance weight of .5 for each
+incorrect answer example in training. The candidate answers are then sorted by this
+conﬁdence value, resulting in a single best answer.
+
+The merging and ranking is actually run iteratively; ﬁrst the candidates are
+ranked by the classiﬁer, giving a rough ﬁrst value for each candidate answer, then
+that value is used to decide which of the variants of a name to select as the merged
+answer, then the merged answers are re-ranked,.
+
+In summary, we’ve seen in the four stages of DeepQA that it draws on the in-
+tuitions of both the IR-based and knowledge-based paradigms. Indeed, Watson’s
+architectural innovation is its reliance on proposing a very large number of candi-
+date answers from both text-based and knowledge-based sources and then devel-
+oping a wide variety of evidence features for scoring these candidates —again both
+text-based and knowledge-based. Of course the Watson system has many more com-
+ponents for dealing with rare and complex questions, and for strategic decisions in
+playing Jeopardy!; see the papers mentioned at the end of the chapter for many more
+details.
+
+28.4 Evaluation of Factoid Answers
+
+mean
+reciprocal rank
+MRR
+
+A common evaluation metric for factoid question answering, introduced in the TREC
+Q/A track in 1999, is mean reciprocal rank, or MRR. MRR assumes a test set of
+questions that have been human-labeled with correct answers. MRR also assumes
+that systems are returning a short ranked list of answers or passages containing an-
+swers. Each question is then scored according to the reciprocal of the rank of the
+ﬁrst correct answer. For example if the system returned ﬁve answers but the ﬁrst
+three are wrong and hence the highest-ranked correct answer is ranked fourth, the
+reciprocal rank score for that question would be 1
+4. Questions with return sets that
+do not contain any correct answers are assigned a zero. The score of a system is
+then the average of the score for each question in the set. More formally, for an
+evaluation of a system returning a set of ranked answers for a test set consisting of
+
+BIBLIOGRAPHICAL AND HISTORICAL NOTES
+
+17
+
+N questions, the MRR is deﬁned as
+
+MRR =
+
+1
+N
+
+N(cid:88)
+
+i=1 s.t. ranki(cid:54)=0
+
+1
+
+ranki
+
+(28.9)
+
+FREE917
+
+A number of test sets are available for question answering. Early systems used
+the TREC QA dataset; questions and hand-written answers for TREC competitions
+from 1999 to 2004 are publicly available. FREE917 (Cai and Yates, 2013) has 917
+questions manually created by annotators, each paired with a meaning representa-
+tion; example questions include:
+
+How many people survived the sinking of the Titanic?
+What is the average temperature in Sydney in August?
+When did Mount Fuji last erupt?
+
+WEBQUES-
+TIONS
+
+WEBQUESTIONS (Berant et al., 2013) contains 5,810 questions asked by web
+users, each beginning with a wh-word and containing exactly one entity. Questions
+are paired with hand-written answers drawn from the Freebase page of the question’s
+entity, and were extracted from Google Suggest by breadth-ﬁrst search (start with a
+seed question, remove some words, use Google Suggest to suggest likely alternative
+question candidates, remove some words, etc.). Some examples:
+
+What character did Natalie Portman play in Star Wars?
+What airport is closest to Palm Springs?
+Which countries share land border with Vietnam?
+What present day countries use English as their national language?
+
+Bibliographical and Historical Notes
+
+Question answering was one of the earliest NLP tasks, and early versions of the text-
+based and knowledge-based paradigms were developed by the very early 1960s. The
+text-based algorithms generally relied on simple parsing of the question and of the
+sentences in the document, and then looking for matches. This approach was used
+very early on (Phillips, 1960) but perhaps the most complete early system, and one
+that strikingly preﬁgures modern relation-based systems, was the Protosynthex sys-
+tem of Simmons et al. (1964). Given a question, Protosynthex ﬁrst formed a query
+from the content words in the question, and then retrieved candidate answer sen-
+tences in the document, ranked by their frequency-weighted term overlap with the
+question. The query and each retrieved sentence were then parsed with dependency
+parsers, and the sentence whose structure best matches the question structure se-
+lected. Thus the question What do worms eat? would match worms eat grass: both
+have the subject worms as a dependent of eat, in the version of dependency grammar
+used at the time, while birds eat worms has birds as the subject:
+
+What do worms eat
+
+Worms eat grass
+
+Birds eat worms
+
+18 CHAPTER 28
+
+• QUESTION ANSWERING
+
+The alternative knowledge-based paradigm was implemented in the BASEBALL
+system (Green et al., 1961). This system answered questions about baseball games
+like “Where did the Red Sox play on July 7” by querying a structured database of
+game information. The database was stored as a kind of attribute-value matrix with
+values for attributes of each game:
+
+Month = July
+
+Place = Boston
+
+Day = 7
+Game Serial No.
+(Team = Red Sox, Score = 5)
+(Team = Yankees, Score = 3)
+
+= 96
+
+Each question was constituency-parsed using the algorithm of Zellig Harris’s
+TDAP project at the University of Pennsylvania, essentially a cascade of ﬁnite-
+state transducers (see the historical discussion in Joshi and Hopely 1999 and Kart-
+tunen 1999). Then a content analysis phase each word or phrase was associated with
+a program that computed parts of its meaning. Thus the phrase ‘Where’ had code to
+assign the semantics Place = ?", with the result that the question “Where did the
+Red Sox play on July 7” was assigned the meaning
+
+Place = ?
+Team = Red Sox
+Month = July
+Day = 7
+
+LUNAR
+
+The question is then matched against the database to return to the answer. Sim-
+
+mons (1965) summarizes other early QA systems.
+
+Another important progenitor of the knowledge-based paradigm for question-
+answering is work that used predicate calculus as the meaning representation lan-
+guage. The LUNAR system (Woods et al. 1972,Woods 1978) was designed to be
+a natural language interface to a database of chemical facts about lunar geology. It
+could answer questions like Do any samples have greater than 13 percent aluminum
+by parsing them into a logical form
+
+(TEST (FOR SOME X16 / (SEQ SAMPLES) : T ; (CONTAIN’ X16
+(NPR* X17 / (QUOTE AL203)) (GREATERTHAN 13PCT))))
+
+The rise of the web brought the information-retrieval paradigm for question an-
+swering to the forefront with the TREC QA track beginning in 1999, leading to a
+wide variety of factoid and non-factoid systems competing in annual evaluations.
+
+The DeepQA component of the Watson system that won the Jeopardy! challenge
+is described in a series of papers in volume 56 of the IBM Journal of Research and
+Development; see for example Ferrucci (2012), Lally et al. (2012), Chu-Carroll et al.
+(2012), Murdock et al. (2012b), Murdock et al. (2012a), Kalyanpur et al. (2012), and
+Gondek et al. (2012).
+
+Question answering is also an important function of modern personal assistant
+
+dialog systems; see Chapter 29 for more.
+
+Exercises
+
+Berant, J., Chou, A., Frostig, R., and Liang, P. (2013). Se-
+mantic parsing on freebase from question-answer pairs. In
+EMNLP 2013.
+
+Karttunen, L. (1999). Comments on Joshi.
+
+In Kornai, A.
+(Ed.), Extended Finite State Models of Language, pp. 16–
+18. Cambridge University Press.
+
+Exercises
+
+19
+
+Berant, J. and Liang, P. (2014). Semantic parsing via para-
+
+phrasing. In ACL 2014.
+
+Bizer, C., Lehmann, J., Kobilarov, G., Auer, S., Becker, C.,
+Cyganiak, R., and Hellmann, S. (2009). DBpedia—A crys-
+tallization point for the Web of Data. Web Semantics: sci-
+ence, services and agents on the world wide web, 7(3),
+154–165.
+
+Bollacker, K., Evans, C., Paritosh, P., Sturge, T., and Tay-
+lor, J. (2008). Freebase: a collaboratively created graph
+In SIGMOD
+database for structuring human knowledge.
+2008, pp. 1247–1250.
+
+Brill, E., Dumais, S. T., and Banko, M. (2002). An analy-
+sis of the AskMSR question-answering system. In EMNLP
+2002, pp. 257–264.
+
+Cai, Q. and Yates, A. (2013). Large-scale semantic parsing
+via schema matching and lexicon extension.. In ACL 2013,
+pp. 423–433.
+
+Chang, A. X. and Manning, C. D. (2012). SUTime: A li-
+brary for recognizing and normalizing time expressions..
+In LREC-12, pp. 3735–3740.
+
+Chu-Carroll, J., Fan, J., Boguraev, B. K., Carmel, D., Shein-
+wald, D., and Welty, C. (2012). Finding needles in the
+haystack: Search and candidate generation. IBM Journal
+of Research and Development, 56(3/4), 6:1–6:12.
+
+Fader, A., Soderland, S., and Etzioni, O. (2011). Identifying
+relations for open information extraction. In EMNLP-11,
+pp. 1535–1545.
+
+Fader, A., Zettlemoyer, L., and Etzioni, O.
+
+(2013).
+Paraphrase-driven learning for open question answering. In
+ACL 2013, Soﬁa, Bulgaria, pp. 1608–1618.
+
+Ferrucci, D. A. (2012). Introduction to “this is watson”. IBM
+Journal of Research and Development, 56(3/4), 1:1–1:15.
+Gondek, D., Lally, A., Kalyanpur, A., Murdock, J. W.,
+Dubou´e, P. A., Zhang, L., Pan, Y., Qiu, Z., and Welty, C.
+(2012). A framework for merging and ranking of answers
+IBM Journal of Research and Development,
+in deepqa.
+56(3/4), 14:1–14:12.
+
+Green, B. F., Wolf, A. K., Chomsky, C., and Laughery, K.
+(1961). Baseball: An automatic question answerer. In Pro-
+ceedings of the Western Joint Computer Conference 19, pp.
+219–224. Reprinted in Grosz et al. (1986).
+
+Harabagiu, S., Pasca, M., and Maiorano, S. (2000). Exper-
+In
+
+iments with open-domain textual question answering.
+COLING-00, Saarbr¨ucken, Germany.
+
+Hovy, E. H., Hermjakob, U., and Ravichandran, D. (2002).
+A question/answer typology with surface text patterns. In
+HLT-01.
+
+Joshi, A. K. and Hopely, P. (1999). A parser from antiq-
+uity. In Kornai, A. (Ed.), Extended Finite State Models of
+Language, pp. 6–15. Cambridge University Press.
+
+Kalyanpur, A., Boguraev, B. K., Patwardhan, S., Murdock,
+J. W., Lally, A., Welty, C., Prager, J. M., Coppola, B.,
+Fokoue-Nkoutche, A., Zhang, L., Pan, Y., and Qiu, Z. M.
+(2012). Structured data and inference in deepqa. IBM Jour-
+nal of Research and Development, 56(3/4), 10:1–10:14.
+
+Lally, A., Prager, J. M., McCord, M. C., Boguraev, B. K.,
+Patwardhan, S., Fan, J., Fodor, P., and Chu-Carroll, J.
+(2012). Question analysis: How Watson reads a clue. IBM
+Journal of Research and Development, 56(3/4), 2:1–2:14.
+Li, X. and Roth, D. (2002). Learning question classiﬁers. In
+
+COLING-02, pp. 556–562.
+
+Li, X. and Roth, D. (2005). Learning question classiﬁers:
+The role of semantic information. Journal of Natural Lan-
+guage Engineering, 11(4).
+
+Lin, J. (2007). An exploration of the principles underlying
+redundancy-based factoid question answering. ACM Trans-
+actions on Information Systems, 25(2).
+
+Monz, C. (2004). Minimal span weighting retrieval for ques-
+In SIGIR Workshop on Information Re-
+
+tion answering.
+trieval for Question Answering, pp. 23–30.
+
+Murdock, J. W., Fan, J., Lally, A., Shima, H., and Boguraev,
+B. K. (2012a). Textual evidence gathering and analysis.
+IBM Journal of Research and Development, 56(3/4), 8:1–
+8:14.
+
+Murdock, J. W., Kalyanpur, A., Welty, C., Fan, J., Fer-
+rucci, D. A., Gondek, D. C., Zhang, L., and Kanayama,
+H. (2012b). Typing candidate answers using type coercion.
+IBM Journal of Research and Development, 56(3/4), 7:1–
+7:13.
+
+Pasca, M. (2003). Open-Domain Question Answering from
+
+Large Text Collections. CSLI.
+
+Phillips, A. V. (1960). A question-answering routine. Tech.
+
+rep. 16, MIT AI Lab.
+
+Simmons, R. F. (1965). Answering English questions by
+computer: A survey. Communications of the ACM, 8(1),
+53–70.
+
+Simmons, R. F., Klein, S., and McConlogue, K. (1964). In-
+dexing and dependency logic for answering english ques-
+tions. American Documentation, 15(3), 196–204.
+
+Spitkovsky, V. I. and Chang, A. X. (2012). A cross-lingual
+In LREC-12,
+
+dictionary for English Wikipedia concepts.
+Istanbul, Turkey.
+
+Woods, W. A. (1978). Semantics and quantiﬁcation in natu-
+ral language question answering. In Yovits, M. (Ed.), Ad-
+vances in Computers, pp. 2–64. Academic.
+
+Woods, W. A., Kaplan, R. M., and Nash-Webber, B. L.
+(1972). The lunar sciences natural language information
+system: Final report. Tech. rep. 2378, BBN.
+
+Zelle, J. M. and Mooney, R. J. (1996). Learning to parse
+In
+
+database queries using inductive logic programming.
+AAAI-96, pp. 1050–1055.
+
+Zettlemoyer, L. and Collins, M. (2005). Learning to map
+sentences to logical form: Structured classiﬁcation with
+In Uncertainty in Ar-
+probabilistic categorial grammars.
+tiﬁcial Intelligence, UAI’05, pp. 658–666.
+
+

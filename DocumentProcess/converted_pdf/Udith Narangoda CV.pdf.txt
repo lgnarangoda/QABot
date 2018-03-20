@@ -1,0 +1,253 @@
+ 
+ 
+
+RESUME 
+
+Udith Sanjeewa Narangoda 
+udithsanju@gmail.com 
++94711006574 
+658/36, Mahavila Gardens, Colombo 09, Sri Lanka. 
+ 
+
+WORKING EXPERIENCE 
+
+Software Engineer (Java) (Since October 2015) 
+VirtusaPolaris (pvt) Ltd, Colombo 09, Sri Lanka.  
+
+•  Experienced in front end development (BackboneJS, jQuery, JavaScript, HTML, angularjs). 
+•  Core Java development experienced. 
+•  UNIX/Linux Environment Knowledge. 
+•  Experienced in frameworks (Spring, MyBatis, RESTful). 
+•  Development ide’s (intelliJ, eclipse) 
+•  Database Platforms (MySQL). 
+
+  
+
+e-Net Solutions (Pvt) Ltd  (October 2014 - October 2015) 
+No:338, Dalugama, Kelaniya, Sri lanka. 
+
+•  Experienced in C programing language. 
+
+•  Experienced in web development (PHP, HTML, JavaScript). 
+
+• 
+
+IoT developments technologies (Arduino). 
+
+ 
+
+ 
+
+TECHNICAL SKILLS 
+
+Java 
+
+• 
+•  Spring MVC 
+•  MyBatis 
+•  PHP 
+•  HTML 
+jQuery 
+• 
+•  Ajax 
+
+•  XML 
+•  BackboneJS 
+•  Maven 
+•  Tomcat 
+•  Apache 
+•  RESTful 
+• 
+
+JavaScript 
+
+•  MySQL 
+•  Ubuntu 
+•  CentOS 
+•  Windows 
+•  Eclipse 
+•  NetBeans 
+• 
+
+IntelliJ 
+
+ 
+
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+
+ 
+ 
+EDUCATIONAL & PROFESSIONAL QUALIFICATIONS 
+ 
+
+•  B.Sc.  (Special)  in  Computer  Science  from  the  department  of  Mathematical  Sciences,  University  of 
+
+South Eastern Sri Lanka. 
+
+•  Certificate Course, Web Designing, IDM Affiliated campus - Distinction pass. 
+
+•  Certificate Course, Java For Developers, IDM Affiliated campus - Credit pass. 
+
+ 
+
+•  GCE A/L (2009) Mathematics Stream - MO/ Wellawaya Central Collage 
+
+•  GCE O/L (2006) Obtained 4A’s 3B’s 1C and 2S’s - MO/ Wellawaya Central Collage. 
+
+ 
+
+ 
+
+REASEARCH & PROJECT EXPERIENCE 
+
+Gramasewaka Management System. 
+
+This project provides a management system for the Gramasewaka in our village. 
+
+It Involves 4 core modules which are, issuing of letters, finding house  details, search people details and 
+
+find Gramasewaka areas. 
+
+ 
+Wireless Weather Station.  
+
+ 
+
+Description. 
+
+ 
+
+This system mainly provides weather data logger facilities. This system carefully analyses data and results 
+
+of the process provides climatic behaviors, such as temperature, humidity and light intensity which can be 
+
+seen  through  the  web  site  and  an  android  app  which  is  running  on  mobile  phones.  This  system  also 
+
+consists of socket programming application. 
+
+Development. 
+
+ 
+
+Used a GSM modem, sensors etc.  In developing the embedded system. Java and C languages were used 
+
+for  programming,  Website  was  developed  with  PHP,  HTML  and  JavaScript.  MySQL  was  the  choice  for 
+
+Database. 
+
+ 
+
+ 
+
+ 
+
+ 
+
+ 
+
+ 
+
+ 
+
+PERSONAL INFORMATION 
+
+Name in Full 
+
+: Udith Sanjeewa Narangoda 
+
+ 
+
+ 
+
+ 
+
+ 
+
+ 
+
+Date of Birth 
+
+NIC number 
+
+Gender  
+
+Civil Status 
+
+Nationality 
+
+ 
+
+: 25th of February 1990 
+
+: 900560133V 
+
+: Male 
+
+: Single 
+
+: Sri Lankan 
+
+NON-RELATED REFREES 
+
+ 
+
+ 
+
+ 
+
+ 
+ 
+ 
+ 
+ 
+
+DR  HMM Naleer, 
+Lecturer in university of 
+South Eastern. 
+Mathematical department, FAS, 
+South Eastern University, Sri Lanka. 
+ 
+Mobile   - +94773514014 
+Email      - hmmnaleer@gmail.com 
+ 
+ 
+ 
+DISCLAIMER 
+ 
+I do hereby declare that the details furnished above are true and accurate as to the best of my 
+knowledge. 
+ 
+
+M R Naleen Karunasinghe, 
+e-Net Solutions(pvt)Ltd, 
+No: 338, 
+Dalugama, Kelaniya, 
+Sri Lanka. 
+ 
+Mobile   - +94712609485 
+Email      - naleen@eee.org 
+ 
+ 
+
+Thank You, 
+Yours Faithfully, 
+ 
+ 
+ 
+ 
+U.S. Narangoda 
+January 2, 2018 
+
+
