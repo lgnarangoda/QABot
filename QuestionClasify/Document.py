@@ -5,7 +5,7 @@ def get_Document_Data_Set():
 
 
     cur_path = os.path.dirname(__file__)
-    file_Doc = open(cur_path+"/DataFull.txt", mode='r')
+    file_Doc = open(cur_path+"/DataFull.txt", mode='r', encoding="utf8")
     text_D = file_Doc.read()
     return text_D
 
