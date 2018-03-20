@@ -9,7 +9,7 @@ textSent_Tok_Que = DWL.main()
 def words(text): return re.findall(r'\w+', text.lower())
 
 cur_path = os.path.dirname(__file__)
-WORDS = Counter(words(open(cur_path+"/DataFull.txt").read()))
+WORDS = Counter(words(open(cur_path+"/DataFull.txt",encoding = "ISO-8859-1").read()))
 
 
 def P(word, N=sum(WORDS.values())):
