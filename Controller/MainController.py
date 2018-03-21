@@ -16,7 +16,8 @@ nltk.download('punkt')
 
 import nltk
 nltk.download('averaged_perceptron_tagger')
-
+import nltk
+nltk.download('wordnet')
 
 def set_filename_and_question(filename, questions):
     global file_name
