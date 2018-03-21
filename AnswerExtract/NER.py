@@ -1,6 +1,6 @@
 from pycorenlp import StanfordCoreNLP
 from pprint import pprint
-corenlp = StanfordCoreNLP('http://localhost:9000')
+corenlp = StanfordCoreNLP('http://corenlp.run:80')
 
 def corenlp1(text):
 
