@@ -13,6 +13,11 @@ qa_details = ""
 answer = "answer"
 import nltk
 nltk.download('punkt')
+
+import nltk
+nltk.download('averaged_perceptron_tagger')
+
+
 def set_filename_and_question(filename, questions):
     global file_name
     file_name = filename
