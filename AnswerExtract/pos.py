@@ -6,7 +6,7 @@ import nltk
 
 
 ##text = "Jhon"
-def corenlp2(text):
+def corenlp1(text):
     corenlp = StanfordCoreNLP('http://corenlp.run:80')
     core = corenlp.annotate(str(text),
                        properties={

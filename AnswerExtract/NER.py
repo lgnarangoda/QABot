@@ -2,7 +2,7 @@ from pycorenlp import StanfordCoreNLP
 from pprint import pprint
 text = "How many papers in the queue child"
 import nltk
-def corenlp2(text):
+def corenlp1(text):
     corenlp = StanfordCoreNLP('http://corenlp.run:80')
     core = corenlp.annotate(str(text),
                        properties={
