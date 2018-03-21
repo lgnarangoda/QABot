@@ -2,19 +2,19 @@ import os
 from flask import Flask, request, redirect, url_for
 from werkzeug.utils import secure_filename
 from flask import Flask, request, jsonify, json
-from flask_cors import CORS
+from flask_cors import CORS,cross_origin
 
 file_name = ''
 app = Flask(__name__)
 CORS(app, resources=r'/*')
 ALLOWED_EXTENSIONS = set(['txt', 'pdf', 'docx'])
-
+app.config['CORS_HEADERS'] = 'application/json'
 
 def allowed_file(filename):
     return '.' in filename and \
            filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
-
+@cross_origin()
 @app.route('/file', methods=['POST'])
 def upload_file():
     if request.method == 'POST':
@@ -41,7 +41,7 @@ def upload_file():
 
             return "success save file"
 
-
+@cross_origin()
 @app.route('/question', methods=['POST'])
 def ask_question():
     global file_name
