@@ -39,8 +39,8 @@ def DCProcess(target, file):
     #     import DocumentProcess.pdfreader as pdfreader
     #     pdfreader.convertMultiple(file)
     cur_path = os.path.dirname(__file__)+"/converted_pdf"
-    pdf_text = open(cur_path+"/"+ file + ".txt", 'r',encoding = "ISO-8859-1").read()
-    # pdf_text = open("D:/ifs final/git/code/DocumentProcess/advs.pdf.txt", 'r', encoding="utf8").read()
+    # pdf_text = open(cur_path+"/"+  + ".txt", 'r',encoding = "ISO-8859-1").read()
+    pdf_text = open(cur_path+"/advs.pdf.txt", 'r', encoding="ISO-8859-1").read()
 
     pdf_text = pdf_text.replace("\n", " ")
     pdf_text = pdf_text.replace("\n", ". ")

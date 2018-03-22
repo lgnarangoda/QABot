@@ -20,7 +20,7 @@ def getAnswer(index, sent):
             if w.lower() in sent.lower():
                 count = count+1
             
-    if count == size:
+    if True:
         ner_dict = NER.corenlp1(sent)
         for keyn, valuen in ner_dict.items():
             if valuen == "PERSON":
